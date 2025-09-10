@@ -1,0 +1,7 @@
+[project]
+name = "importsim"
+version = "0.1.0"
+description = "A package that dynamically generates modules on import."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
