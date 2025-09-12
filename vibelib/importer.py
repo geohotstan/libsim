@@ -16,12 +16,12 @@ def get_caller_source_code():
     Walks the stack to find the source code of the module that
     initiated the import call.
     """
-    # We are looking for the first frame that is NOT part of importsim or importlib
+    # We are looking for the first frame that is NOT part of vibelib or importlib
     for frame_info in inspect.stack():
         module = inspect.getmodule(frame_info.frame)
         if module:
             module_name = module.__name__
-            if not module_name.startswith('importsim') and not module_name.startswith('importlib'):
+            if not module_name.startswith('vibelib') and not module_name.startswith('importlib'):
                 # We found the caller frame.
                 try:
                     with open(frame_info.filename, 'r') as f:
@@ -53,7 +53,7 @@ Based on the user's code, you must generate the Python code for the module named
 
 **Instructions:**
 1.  Analyze the user's code to determine what functions, classes, and variables are required.
-2.  Define these objects directly. For example, if the user's code is `from importsim.hello import world` and then `world.greet()`, you (when generating the `importsim.hello` module) MUST generate a `world` object instance that has a `greet()` method. A class definition alone is not enough.
+2.  Define these objects directly. For example, if the user's code is `from vibelib.hello import world` and then `world.greet()`, you (when generating the `vibelib.hello` module) MUST generate a `world` object instance that has a `greet()` method. A class definition alone is not enough.
 3.  **ABSOLUTELY DO NOT** use `import sys` or refer to `sys.modules`. The `exec` environment handles this. Your code should only contain the definitions of the required objects.
 3.  **ABSOLUTELY DO NOT** import any external python library that is not in the standard python library.
 4.  Your output MUST be a single, clean block of Python code, suitable for `exec`. Start the code with ```python and end it with ```. Do not include any other text or explanations.
@@ -119,7 +119,7 @@ class CallableModule(ModuleType):
         raise TypeError(f"'{self.__name__}' module object is not directly callable. Did you forget to define a main function?")
 
 
-class ImportSimLoader(importlib.abc.Loader):
+class VibeLibLoader(importlib.abc.Loader):
     """
     The custom loader. Its job is to execute the dynamically generated code.
     """
@@ -163,17 +163,17 @@ class ImportSimLoader(importlib.abc.Loader):
             raise
 
 
-class ImportSimFinder(importlib.abc.MetaPathFinder):
+class VibeLibFinder(importlib.abc.MetaPathFinder):
     """
     The custom finder. Its job is to tell Python we can handle
-    any import that starts with 'importsim.'.
+    any import that starts with 'vibelib.'.
     """
     def find_spec(self, fullname, path, target=None):
         #print("fullname", fullname)
-        if fullname.startswith('importsim'):
+        if fullname.startswith('vibelib'):
             return importlib.util.spec_from_loader(
                 fullname,
-                ImportSimLoader(fullname),
+                VibeLibLoader(fullname),
                 is_package=True
             )
         return None

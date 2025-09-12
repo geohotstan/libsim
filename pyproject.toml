@@ -1,5 +1,5 @@
 [project]
-name = "importsim"
+name = "vibelib"
 version = "0.1.0"
 description = "A package that dynamically generates modules on import."
 readme = "README.md"
