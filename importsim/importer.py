@@ -55,6 +55,7 @@ Based on the user's code, you must generate the Python code for the module named
 1.  Analyze the user's code to determine what functions, classes, and variables are required.
 2.  Define these objects directly. For example, if the user's code is `from importsim.hello import world` and then `world.greet()`, you (when generating the `importsim.hello` module) MUST generate a `world` object instance that has a `greet()` method. A class definition alone is not enough.
 3.  **ABSOLUTELY DO NOT** use `import sys` or refer to `sys.modules`. The `exec` environment handles this. Your code should only contain the definitions of the required objects.
+3.  **ABSOLUTELY DO NOT** import any external python library that is not in the standard python library.
 4.  Your output MUST be a single, clean block of Python code, suitable for `exec`. Start the code with ```python and end it with ```. Do not include any other text or explanations.
 5.  **IMPORTANT**: Ensure that you do not define global variables that have the same name as function parameters. This will cause a `SyntaxError`.
 
@@ -67,6 +68,7 @@ Based on the user's code, you must generate the Python code for the module named
             messages=[{"content": prompt, "role": "user"}],
         )
         generated_text = response.choices[0].message.content.strip()
+        #print("LLM generated text:")
         #print(generated_text)
 
         # This parsing logic is deliberately strict. We require the LLM to return
