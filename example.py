@@ -1,4 +1,4 @@
-from vibelib import generate_tweet, sort
+from libsim import generate_tweet, sort
 import time
 
 tweet: str = generate_tweet(subject="tinygrad", style="a short poem", viral=True)

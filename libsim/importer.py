@@ -21,7 +21,7 @@ def get_caller_source_code():
         module = inspect.getmodule(frame_info.frame)
         if module:
             module_name = module.__name__
-            if not module_name.startswith('vibelib') and not module_name.startswith('importlib'):
+            if not module_name.startswith('libsim') and not module_name.startswith('importlib'):
                 # We found the caller frame.
                 try:
                     with open(frame_info.filename, 'r') as f:
@@ -53,7 +53,7 @@ Based on the user's code, you must generate the Python code for the module named
 
 **Instructions:**
 1.  Analyze the user's code to determine what functions, classes, and variables are required.
-2.  Define these objects directly. For example, if the user's code is `from vibelib.hello import world` and then `world.greet()`, you (when generating the `vibelib.hello` module) MUST generate a `world` object instance that has a `greet()` method. A class definition alone is not enough.
+2.  Define these objects directly. For example, if the user's code is `from libsim.hello import world` and then `world.greet()`, you (when generating the `vibelib.hello` module) MUST generate a `world` object instance that has a `greet()` method. A class definition alone is not enough.
 3.  **ABSOLUTELY DO NOT** use `import sys` or refer to `sys.modules`. The `exec` environment handles this. Your code should only contain the definitions of the required objects.
 3.  **ABSOLUTELY DO NOT** import any external python library that is not in the standard python library.
 4.  Your output MUST be a single, clean block of Python code, suitable for `exec`. Start the code with ```python and end it with ```. Do not include any other text or explanations.
@@ -69,7 +69,7 @@ Based on the user's code, you must generate the Python code for the module named
         )
         generated_text = response.choices[0].message.content.strip()
         #print("LLM generated text:")
-        #print(generated_text)
+        print(generated_text)
 
         # This parsing logic is deliberately strict. We require the LLM to return
         # a single, clean python code block, as instructed in the prompt. This avoids
@@ -119,7 +119,7 @@ class CallableModule(ModuleType):
         raise TypeError(f"'{self.__name__}' module object is not directly callable. Did you forget to define a main function?")
 
 
-class VibeLibLoader(importlib.abc.Loader):
+class LibSimLoader(importlib.abc.Loader):
     """
     The custom loader. Its job is to execute the dynamically generated code.
     """
@@ -163,17 +163,17 @@ class VibeLibLoader(importlib.abc.Loader):
             raise
 
 
-class VibeLibFinder(importlib.abc.MetaPathFinder):
+class LibSimFinder(importlib.abc.MetaPathFinder):
     """
     The custom finder. Its job is to tell Python we can handle
     any import that starts with 'vibelib.'.
     """
     def find_spec(self, fullname, path, target=None):
         #print("fullname", fullname)
-        if fullname.startswith('vibelib'):
+        if fullname.startswith('libsim'):
             return importlib.util.spec_from_loader(
                 fullname,
-                VibeLibLoader(fullname),
+                LibSimLoader(fullname),
                 is_package=True
             )
         return None
