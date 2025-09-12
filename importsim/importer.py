@@ -7,7 +7,9 @@ import inspect
 import litellm
 
 # Set the model and API key. Using an environment variable for the key is best practice.
-LLM_MODEL = "openrouter/mistralai/mistral-7b-instruct:free"
+# LLM_MODEL = "openrouter/mistralai/mistral-7b-instruct:free"
+# LLM_MODEL = "openrouter/z-ai/glm-4.5-air:free"
+LLM_MODEL = "openrouter/deepseek/deepseek-chat-v3.1:free"
 
 def get_caller_source_code():
     """
@@ -54,6 +56,7 @@ Based on the user's code, you must generate the Python code for the module named
 2.  Define these objects directly. For example, if the user's code is `from importsim.hello import world` and then `world.greet()`, you (when generating the `importsim.hello` module) MUST generate a `world` object instance that has a `greet()` method. A class definition alone is not enough.
 3.  **ABSOLUTELY DO NOT** use `import sys` or refer to `sys.modules`. The `exec` environment handles this. Your code should only contain the definitions of the required objects.
 4.  Your output MUST be a single, clean block of Python code, suitable for `exec`. Start the code with ```python and end it with ```. Do not include any other text or explanations.
+5.  **IMPORTANT**: Ensure that you do not define global variables that have the same name as function parameters. This will cause a `SyntaxError`.
 
 **Generated Python Code for the body of {module_name}:**
 """
@@ -64,6 +67,7 @@ Based on the user's code, you must generate the Python code for the module named
             messages=[{"content": prompt, "role": "user"}],
         )
         generated_text = response.choices[0].message.content.strip()
+        #print(generated_text)
 
         # This parsing logic is deliberately strict. We require the LLM to return
         # a single, clean python code block, as instructed in the prompt. This avoids
@@ -97,9 +101,20 @@ def generate_code(module_name):
     """
     Dynamically generates Python code for a given module name using an LLM.
     """
+    #print("module_name", module_name)
     caller_source = get_caller_source_code()
     generated_code = invoke_llm(caller_source, module_name)
     return generated_code
+
+
+class CallableModule(ModuleType):
+    def __call__(self, *args, **kwargs):
+        # This makes the module instance itself callable.
+        # We look for a special attribute `_callable_func` which holds the
+        # actual function to be called.
+        if hasattr(self, "_callable_func"):
+            return self._callable_func(*args, **kwargs)
+        raise TypeError(f"'{self.__name__}' module object is not directly callable. Did you forget to define a main function?")
 
 
 class ImportSimLoader(importlib.abc.Loader):
@@ -110,7 +125,8 @@ class ImportSimLoader(importlib.abc.Loader):
         self.fullname = fullname
 
     def create_module(self, spec):
-        return None
+        # We return our custom module type here.
+        return CallableModule(spec.name)
 
     def exec_module(self, module):
         """
@@ -119,7 +135,23 @@ class ImportSimLoader(importlib.abc.Loader):
         """
         try:
             code = generate_code(module.__name__)
+            #print(code)
             exec(code, module.__dict__)
+
+            # After executing the code, we need to find the function that
+            # the user intended to call. We'll assume the function name
+            # matches the last part of the import path.
+            function_name = module.__name__.split('.')[-1]
+            main_func = module.__dict__.get(function_name)
+
+            if callable(main_func):
+                module._callable_func = main_func
+            else:
+                # If the intended function isn't found or isn't callable,
+                # we leave the _callable_func attribute unset. The __call__
+                # method in CallableModule will then raise a TypeError.
+                pass
+
             module.__path__ = []
         except SyntaxError as e:
             print(f"LLM-generated code for {module.__name__} has a syntax error: {e}")
@@ -135,6 +167,7 @@ class ImportSimFinder(importlib.abc.MetaPathFinder):
     any import that starts with 'importsim.'.
     """
     def find_spec(self, fullname, path, target=None):
+        #print("fullname", fullname)
         if fullname.startswith('importsim'):
             return importlib.util.spec_from_loader(
                 fullname,
