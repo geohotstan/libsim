@@ -35,6 +35,16 @@ def get_caller_libsim_imports(source_code):
     # Find all direct imports of libsim modules
     # e.g., import libsim.foo.bar
     imports += re.findall(r'import\s+(libsim(?:\.\w+)+)', source_code)
+
+    # Find imports like: from libsim import foo, bar as b, or from libsim import (foo, bar)
+    simple_froms = re.findall(r'from\s+libsim\s+import\s+([^\n]+)', source_code)
+    for group in simple_froms:
+        parts = group.split(',')
+        for part in parts:
+            name = part.strip().split()[0].strip('()')
+            if name:
+                imports.append(f'libsim.{name}')
+
     return imports
 
 
@@ -69,23 +79,7 @@ class LibSimLoader(importlib.abc.Loader):
             libsim_imports = get_caller_libsim_imports(caller_source)
 
             fullname = module.__name__
-            print(f"Generating module {fullname}")
-
-            if not libsim_imports:
-                # import is from root like `from libsim import sort`
-                code = invoke_llm(caller_source, module.__name__)
-                print(code)
-                exec(code, module.__dict__)
-                function_name = module.__name__.split('.')[-1]
-                main_func = module.__dict__.get(function_name)
-
-                if callable(main_func):
-                    module._callable_func = main_func
-                else:
-                    pass
-
-                module.__path__ = []
-                return
+            print(f"Generating {fullname}")
 
             should_generate = fullname in libsim_imports
             is_package = any(i.startswith(fullname + '.') for i in libsim_imports)
@@ -110,38 +104,6 @@ class LibSimLoader(importlib.abc.Loader):
         except Exception as e:
             print(f"Failed to dynamically create module {module.__name__}: {e}")
             raise
-
-#     def exec_module(self, module):
-#         """
-#         This is the core of the magic!
-#         This method is called to "execute" the module's code.
-#         """
-#         try:
-#             code = generate_code(module.__name__)
-#             #print(code)
-#             exec(code, module.__dict__)
-#
-#             # After executing the code, we need to find the function that
-#             # the user intended to call. We'll assume the function name
-#             # matches the last part of the import path.
-#             function_name = module.__name__.split('.')[-1]
-#             main_func = module.__dict__.get(function_name)
-#
-#             if callable(main_func):
-#                 module._callable_func = main_func
-#             else:
-#                 # If the intended function isn't found or isn't callable,
-#                 # we leave the _callable_func attribute unset. The __call__
-#                 # method in CallableModule will then raise a TypeError.
-#                 pass
-#
-#             module.__path__ = []
-#         except SyntaxError as e:
-#             print(f"LLM-generated code for {module.__name__} has a syntax error: {e}")
-#             raise ImportError(f"Failed to import {module.__name__} due to a syntax error in generated code.") from e
-#         except Exception as e:
-#             print(f"Failed to dynamically create module {module.__name__}: {e}")
-#             raise
 
 
 class LibSimFinder(importlib.abc.MetaPathFinder):
