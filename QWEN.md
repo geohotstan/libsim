@@ -1,1 +1,0 @@
-This project uses `uv` for package management, so please use `uv` when applicable.

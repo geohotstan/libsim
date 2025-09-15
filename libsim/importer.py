@@ -10,7 +10,7 @@ def get_caller_source_code():
     Walks the stack to find the source code of the module that
     initiated the import call.
     """
-    # We are looking for the first frame that is NOT part of vibelib or importlib
+    # We are looking for the first frame that is NOT part of libsim or importlib
     for frame_info in inspect.stack():
         module = inspect.getmodule(frame_info.frame)
         if module:

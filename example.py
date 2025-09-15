@@ -1,5 +1,6 @@
 import time
-from libsim import generate_tweet, sort
+from libsim import generate_tweet
+from libsim.wow import sort
 
 tweet: str = generate_tweet(subject="tinygrad", style="a short poem", viral=True)
 print(f"Generated tweet: {tweet}")
