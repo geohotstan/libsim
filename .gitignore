@@ -5,6 +5,7 @@ build/
 dist/
 wheels/
 *.egg-info
+src/libsim.egg-info
 
 # Virtual environments
 .venv

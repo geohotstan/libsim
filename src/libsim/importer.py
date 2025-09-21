@@ -1,9 +1,12 @@
 import importlib.abc
 import importlib.util
 import inspect
+import re
 from types import ModuleType
 
 from .llm import invoke_llm
+from .config import config
+from . import cache
 
 def get_caller_source_code():
     """
@@ -26,7 +29,6 @@ def get_caller_source_code():
     return None
 
 def get_caller_libsim_imports(source_code):
-    import re
     if source_code is None:
         return []
     # Find all imports from libsim
@@ -61,6 +63,7 @@ class CallableModule(ModuleType):
 class LibSimLoader(importlib.abc.Loader):
     """
     The custom loader. Its job is to execute the dynamically generated code.
+    It now handles both cache hits (loading from a file) and cache misses (generating with an LLM).
     """
     def __init__(self, fullname):
         self.fullname = fullname
@@ -72,22 +75,35 @@ class LibSimLoader(importlib.abc.Loader):
     def exec_module(self, module):
         """
         This is the core of the magic!
-        This method is called to "execute" the module's code.
         """
         try:
+            fullname = module.__name__
+            parts = fullname.split('.')[1:]
+            if not parts: return
+
+            # Since everything is a package, the module's code is in __init__.py
+            # and its submodules are in the directory.
+            package_dir_in_cache = config.cache_dir.joinpath(*parts)
+            module.__path__ = [str(package_dir_in_cache)]
+
             caller_source = get_caller_source_code()
             libsim_imports = get_caller_libsim_imports(caller_source)
+            if fullname not in libsim_imports and not any(i.startswith(fullname + '.') for i in libsim_imports):
+                return
 
-            fullname = module.__name__
-            print(f"Generating {fullname}")
+            # Always invoke LLM to check/update/generate code
+            if config.debug >= 1:
+                print(f"[libsim] Generating {fullname} with LLM.")
 
-            should_generate = fullname in libsim_imports
-            is_package = any(i.startswith(fullname + '.') for i in libsim_imports)
+            cache.remove_module_from_cache(fullname)
+            updated_files = invoke_llm(caller_source, fullname)
 
-            if should_generate:
-                code = invoke_llm(caller_source, fullname)
-                print(code)
-                exec(code, module.__dict__)
+            files_to_cache = {f"libsim/{f}": code for f, code in updated_files.items()}
+            cache.save_code_to_cache(files_to_cache)
+
+            # The primary code for the module is in __init__.py
+            for file_name, file_content in updated_files.items():
+                exec(file_content, module.__dict__)
 
                 function_name = fullname.split('.')[-1]
                 main_func = module.__dict__.get(function_name)
@@ -95,8 +111,6 @@ class LibSimLoader(importlib.abc.Loader):
                 if callable(main_func):
                     module._callable_func = main_func
 
-            if is_package:
-                module.__path__ = []
 
         except SyntaxError as e:
             print(f"LLM-generated code for {module.__name__} has a syntax error: {e}")
@@ -110,13 +124,21 @@ class LibSimFinder(importlib.abc.MetaPathFinder):
     """
     The custom finder. Its job is to tell Python we can handle
     any import that starts with 'libsim.'.
+    All libsim modules are treated as packages.
     """
     def find_spec(self, fullname, path, target=None):
-        #print("fullname", fullname)
-        if fullname.startswith('libsim'):
-            return importlib.util.spec_from_loader(
-                fullname,
-                LibSimLoader(fullname),
-                is_package=True
-            )
-        return None
+        if not fullname.startswith('libsim'):
+            return None
+
+        # Exclude libsim.config from our loader, it should always be loaded from its file.
+        if fullname == 'libsim.config':
+            return None
+
+        # Since our loader handles both cached and generated modules, we always
+        # return our custom loader for any 'libsim' import.
+        return importlib.util.spec_from_loader(
+            fullname,
+            LibSimLoader(fullname),
+            is_package=True
+        )
+

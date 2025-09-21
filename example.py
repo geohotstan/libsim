@@ -1,3 +1,6 @@
+from libsim import config
+config.use_cache = False
+config.debug = 1
 import time
 from libsim import generate_tweet
 from libsim.wow import sort
