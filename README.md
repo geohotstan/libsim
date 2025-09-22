@@ -1,30 +1,8 @@
 # libsim
 
-A Python library simulator that dynamically generates modules on import using a Large Language Model (LLM).
+[WebSim](https://websim.io) but for Python libraries — never see an ImportError again!
 
-## What is this?
-
-`libsim` is an experimental Python library that intercepts import statements for any module under the `libsim` namespace. Instead of loading code from a file, it uses an LLM to generate the module's code on-the-fly based on how you use it in your code.
-
-For example, if you write:
-
-```python
-from libsim.my_module import my_function
-
-result = my_function("hello")
-```
-
-`libsim` will see that you're trying to import `my_function` from `libsim.my_module`. It will then ask an LLM to generate the Python code for a function called `my_function` inside a module called `my_module`, making its best guess about what that function should do based on the context of your code.
-
-## How it Works
-
-The magic happens through a custom import hook that is installed when you import the `libsim` package.
-
-1.  **MetaPathFinder:** A custom `LibSimFinder` is inserted into `sys.meta_path`. This finder is responsible for handling any import that starts with `libsim.`.
-2.  **Custom Loader:** When an import like `from libsim.foo import bar` is found, the `LibSimFinder` tells Python to use our `LibSimLoader`.
-3.  **Code Generation:** The `LibSimLoader` inspects the source code of the file that made the import request. It sends this source code to an LLM (via `litellm`) with a prompt asking it to generate the required module (`libsim.foo` in this case).
-4.  **Dynamic Execution:** The LLM-generated Python code is then executed using `exec()`, creating the new module and its contents in memory.
-5.  **Module Caching:** Python's import system caches the newly created module in `sys.modules`, so subsequent imports of the same module will use the cached version without calling the LLM again.
+libsim brings the WebSim idea to Python imports: when you import a missing module under the libsim namespace, an LLM synthesizes the module code on demand based on how you use it in your code. 
 
 ## Example Usage
 
@@ -53,7 +31,23 @@ print(f"reverse quick sort in {time.time() - st:.6f} seconds")
 
 In this example, the modules `libsim.generate_tweet` and `libsim.wow.sort` do not exist as physical files. They are generated and imported at runtime by the LLM based on their usage in this script.
 
-## How to Run
+## Example Output
+
+```text
+Generated tweet: Tinygrad, sleek and lean,
+With minimal code, dreams convene.
+From tensors to triumph, swift and true,
+The ML revolution starts with you!
+#tinygrad #python #mlmagic 🚀
+[1, 2, 3, 4, 5, 6]
+Sorted in 0.000010 seconds
+[1, 2, 3, 4, 5, 6]
+quick sort in 0.000010 seconds
+[6, 5, 4, 3, 2, 1]
+reverse quick sort in 0.000007 seconds
+```
+
+## How to Install
 
 1.  **Install dependencies:**
     ```bash
@@ -69,8 +63,3 @@ In this example, the modules `libsim.generate_tweet` and `libsim.wow.sort` do no
     ```bash
     python example.py
     ```
-
-## Configuration
-
--   **LLM Model:** You can change the LLM model by editing the `LLM_MODEL` variable in `libsim/llm/simple.py`.
--   **Prompt:** The prompt sent to the LLM can be modified in `libsim/llm/simple.py`.
