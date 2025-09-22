@@ -6,7 +6,7 @@ class _Config:
     """
     def __init__(self):
         self.use_cache = True
-        self.cache_dir = Path.home() / '.libsim'
+        self.cache_dir = Path('.libsim')
         self.llm_model = "openrouter/x-ai/grok-4-fast:free"
         self.debug = 0  # 0=none, 1=basic, 2=verbose
 

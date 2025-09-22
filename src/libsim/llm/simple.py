@@ -1,4 +1,3 @@
-
 import litellm
 import json
 from ..config import config
@@ -17,17 +16,15 @@ User's code:
 ---
 {source_code}
 ---
+Please ignore `from libsim import config` and any usage of `config` in the user's code.
 
 Generate the code for these modules: {(', '.join(module_names))}
 
-Your response must be a single JSON object.
-The keys must be the file paths for each module, structured as a package (e.g., `module_name/__init__.py`).
-The values must be the Python code for each file.
-
-- Do not use `import sys` or `sys.modules`.
 - Do not import any external libraries.
-- Please ignore `from libsim import config` and any usage of `config` in the user's code.
-- Example: if the user's code is `from libsim.hello import world`, you must generate a `world` object in `hello/__init__.py`.
+
+Your response must be a single JSON object where keys are file paths and values are the corresponding Python code.
+Make sure the file paths match the corresponding module names so that the import statements in the user's code will work correctly.
+The file paths you choose must result in a valid Python module structure that will satisfy the imports in the user's code. For example, for a module `foo`, you can generate either a file `foo.py` or a package `foo/__init__.py`, or a complex package with multiple files.
 """
 
     try:
@@ -49,4 +46,4 @@ The values must be the Python code for each file.
 
     except Exception as e:
         print(f"Error calling LLM for modules {module_names}: {e}")
-        raise ImportError(f"LLM API call failed for modules {module_names}.")
+        raise ImportError(f"LLM API call failed for modules {module_names}.") from e

@@ -11,3 +11,4 @@ src/libsim.egg-info
 .venv
 
 uv.lock
+.libsim
