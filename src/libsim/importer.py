@@ -2,6 +2,7 @@ import importlib.abc
 import importlib.util
 import inspect
 import re
+from pathlib import Path
 from types import ModuleType
 
 from .llm import invoke_llm
@@ -56,20 +57,11 @@ class LibSimLoader(importlib.abc.Loader):
     def exec_module(self, module):
         fullname = module.__name__
         parts = fullname.split('.')[1:]
-        module_path_part = '/'.join(parts)
-        
-        code_to_exec = None
-        
-        package_init_path = f"{module_path_part}/__init__.py" if module_path_part else "__init__.py"
-        
-        parent_path = '/'.join(parts[:-1])
-        module_file_name = parts[-1] if parts else ''
-        module_file_path = f"{parent_path}/{module_file_name}.py" if parent_path else f"{module_file_name}.py"
 
-        if package_init_path in self.generated_code:
-            code_to_exec = self.generated_code[package_init_path]
-        elif module_file_path in self.generated_code:
-            code_to_exec = self.generated_code[module_file_path]
+        path_as_module = Path(*parts).with_suffix('.py')
+        path_as_package = Path(*parts) / '__init__.py'
+
+        code_to_exec = self.generated_code.get(str(path_as_package)) or self.generated_code.get(str(path_as_module))
 
         package_dir_in_cache = config.cache_dir.joinpath(*parts)
         module.__path__ = [str(package_dir_in_cache)]
@@ -96,10 +88,10 @@ class LibSimImporter(importlib.abc.MetaPathFinder):
 
         if self._generated_code is None and not self._is_generating:
             self._is_generating = True
-            
+
             caller_source = get_caller_source_code()
             libsim_imports = get_caller_libsim_imports(caller_source)
-            
+
             if not libsim_imports:
                 self._is_generating = False
                 return None
@@ -110,7 +102,7 @@ class LibSimImporter(importlib.abc.MetaPathFinder):
 
             try:
                 self._generated_code = invoke_llm(caller_source, list(set(libsim_imports)))
-                
+
                 processed_code = {}
                 for path, code in self._generated_code.items():
                     if path.startswith('libsim/'):
@@ -119,14 +111,13 @@ class LibSimImporter(importlib.abc.MetaPathFinder):
                         processed_code[path] = code
                 self._generated_code = processed_code
 
-                files_to_cache = {f"libsim/{f}": code for f, code in self._generated_code.items()}
-                cache.save_code_to_cache(files_to_cache)
+                cache.save_code_to_cache(self._generated_code)
 
             except Exception as e:
                 print(f"Failed to generate code: {e}")
                 self._is_generating = False
                 return None
-            
+
         return importlib.util.spec_from_loader(
             fullname,
             LibSimLoader(fullname, self._generated_code),

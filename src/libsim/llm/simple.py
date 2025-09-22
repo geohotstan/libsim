@@ -10,29 +10,24 @@ def invoke_llm(source_code, module_names):
     if not source_code:
         raise ImportError("Could not find the source code of the calling module.")
 
-    prompt = f"""
-You are an expert Python programmer acting as a code generator.
-Your task is to write the Python code for a set of modules based on a user's script.
+    prompt = f"""You are a Python code generator.
+Based on the user's code below, generate the code for the requested Python modules.
 
-The user's code, which triggered this generation, is:
+User's code:
 ---
 {source_code}
 ---
 
-Based on the user's code, you must generate the Python code for the following modules:
-- {(', '.join(module_names))}
+Generate the code for these modules: {(', '.join(module_names))}
 
-**Instructions:**
-1.  Analyze the user's code to determine what functions, classes, and variables are required for each module.
-2.  Your output MUST be a single JSON object.
-3.  The keys of the JSON object must be the relative file paths for the code to be generated (e.g., `wow/sort.py`, `generate_tweet/__init__.py`).
-4.  The values must be the Python code for each file.
-5.  Define all necessary objects. If the user's code is `from libsim.hello import world` and then `world.greet()`, you must generate a `world` object with a `greet()` method in the `hello/__init__.py` or `hello.py` file.
-6.  **ABSOLUTELY DO NOT** use `import sys` or refer to `sys.modules`.
-7.  **ABSOLUTELY DO NOT** import any external python library that is not in the standard python library.
-8.  Ensure that you do not define global variables that have the same name as function parameters.
+Your response must be a single JSON object.
+The keys must be the file paths for each module, structured as a package (e.g., `module_name/__init__.py`).
+The values must be the Python code for each file.
 
-**Generated JSON for modules:**
+- Do not use `import sys` or `sys.modules`.
+- Do not import any external libraries.
+- Please ignore `from libsim import config` and any usage of `config` in the user's code.
+- Example: if the user's code is `from libsim.hello import world`, you must generate a `world` object in `hello/__init__.py`.
 """
 
     try:
